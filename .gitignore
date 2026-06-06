@@ -1,0 +1,5 @@
+# OS / Editor
+Thumbs.db
+.DS_Store
+*.tmp
+_probe.html

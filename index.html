@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#262624">
+  <title>Getränke – Erfassung</title>
+
+  <!-- ====== PWA: Vollbild / "zum Startbildschirm hinzufügen" ====== -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- iOS / Safari: ohne Adressleiste im Vollbild starten -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Getränke">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ====== Kopfzeile (immer sichtbar) ====== -->
+    <header id="topbar">
+      <button id="backBtn" class="icon-btn" aria-label="Zurück" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        <span>Zurück</span>
+      </button>
+
+      <div id="kundeBadge" class="kunde-badge" hidden>
+        <span class="kunde-label">Kunde</span>
+        <span class="kunde-nr" id="kundeNr">–</span>
+      </div>
+
+      <button id="listBtn" class="icon-btn list-btn" aria-label="Liste öffnen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        <span class="list-count" id="listCount" hidden>0</span>
+      </button>
+    </header>
+
+    <!-- ====== Hauptbereich (Views werden hier gerendert) ====== -->
+    <main id="view"></main>
+
+    <!-- ====== Schwebender Button: Liste fertigstellen ====== -->
+    <button id="finishFab" class="fab" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+      Liste fertigstellen
+    </button>
+  </div>
+
+  <!-- ====== Mengen-Modal (Kästen + Flaschen) ====== -->
+  <div id="qtyModal" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="qtyTitle">
+      <p class="modal-eyebrow" id="qtyCategory">Vollgut</p>
+      <h2 class="modal-title" id="qtyTitle">Artikel</h2>
+
+      <div class="stepper-group">
+        <div class="stepper" data-field="kaesten">
+          <label>Kästen</label>
+          <div class="stepper-row">
+            <button class="step-btn" data-step="-1" aria-label="weniger">−</button>
+            <input type="number" inputmode="numeric" min="0" value="0" id="qtyKaesten">
+            <button class="step-btn" data-step="1" aria-label="mehr">+</button>
+          </div>
+        </div>
+        <div class="stepper" data-field="flaschen">
+          <label>Flaschen</label>
+          <div class="stepper-row">
+            <button class="step-btn" data-step="-1" aria-label="weniger">−</button>
+            <input type="number" inputmode="numeric" min="0" value="0" id="qtyFlaschen">
+            <button class="step-btn" data-step="1" aria-label="mehr">+</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="modal-hint" id="qtyHint" hidden>Flaschen dürfen negativ sein, z.&nbsp;B. −2, wenn ein Kasten nicht ganz voll zurückkommt.</p>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="qtyCancel">Abbrechen</button>
+        <button class="btn btn-primary" id="qtyConfirm">Übernehmen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Listen-Overlay (Kundenkarten) ====== -->
+  <div id="listOverlay" class="sheet-overlay" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Kundenliste">
+      <div class="sheet-head">
+        <h2>Liste</h2>
+        <button id="listClose" class="icon-btn" aria-label="Schließen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body" id="cards"></div>
+    </div>
+  </div>
+
+  <script src="products.js"></script>
+  <script src="app.js"></script>
+
+  <!-- Service Worker registrieren (nur über http/https, nicht bei file://) -->
+  <script>
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch((err) => {
+          console.warn("Service Worker konnte nicht registriert werden:", err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
