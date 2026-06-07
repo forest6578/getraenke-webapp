@@ -13,8 +13,10 @@ Beim Start erscheint ein Login (Firebase Authentication). Es gibt zwei Rollen:
 
 - **Arbeiter** (vorher „Schreiber") – erfasst Kundenaufträge; jede Änderung wird live
   in die Datenbank (Firestore) geschrieben.
-- **Kasse** (vorher „Leser") – sieht eine schreibgeschützte Live-Liste der heutigen
-  Aufträge, die sich automatisch aktualisiert.
+- **Kasse** (vorher „Leser") – sieht eine Live-Liste der heutigen Aufträge, die
+  sich automatisch aktualisiert (auf Desktop mehrspaltig). Jeder Auftrag kann mit
+  **„Auftrag abschließen"** ins Archiv verschoben werden und verschwindet aus der
+  Liste. Archiv-Einträge werden nach **1 Woche** automatisch gelöscht.
 
 Die Rolle ergibt sich aus der Konto-UID: nur `ARBEITER_UID` (in `firebase-config.js`)
 ist der Arbeiter, jedes andere angemeldete Konto ist Kasse.
@@ -22,11 +24,15 @@ ist der Arbeiter, jedes andere angemeldete Konto ist Kasse.
 ## Einmalige Firebase-Einrichtung
 
 1. **Sicherheitsregeln:** Inhalt von `firestore.rules` in der Firebase Console unter
-   *Firestore Database → Regeln* einfügen und veröffentlichen.
+   *Firestore Database → Regeln* einfügen und veröffentlichen. Decken jetzt auch das
+   `archiv` ab – nach jeder Änderung an `firestore.rules` neu veröffentlichen.
 2. **Kasse-Konto:** In *Authentication → Users* muss neben dem Arbeiter mindestens
    ein zweites Konto (E-Mail/Passwort) für die Kasse existieren.
 3. *(Falls der Login mit „unauthorized-domain" scheitert):* In
    *Authentication → Settings → Authorized domains* die GitHub-Pages-Domain ergänzen.
+4. *(Optional)* **Native Aufbewahrung:** Die App räumt das Archiv selbst nach 1 Woche
+   auf. Zusätzlich kann unter *Firestore → TTL* eine Richtlinie auf das Feld
+   `expireAt` der Sammlung `archiv` gesetzt werden (serverseitiges Löschen).
 
 ## Als App installieren (Vollbild, ohne Adressleiste)
 

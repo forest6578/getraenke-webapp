@@ -20,8 +20,10 @@ const firebaseConfig = {
 // dürfen nur lesen. Dieselbe Regel steht in firestore.rules.
 const ARBEITER_UID = "e0fQWeqgdVM28gy0vGeNsJmQZ3x2";
 
-// Name der Firestore-Sammlung mit den Kundenaufträgen.
+// Name der Firestore-Sammlung mit den (aktiven) Kundenaufträgen.
 const KUNDEN_COLLECTION = "kunden";
+// Sammlung für abgeschlossene Aufträge (Archiv, max. 1 Woche Aufbewahrung).
+const ARCHIV_COLLECTION = "archiv";
 
 firebase.initializeApp(firebaseConfig);
 
@@ -30,6 +32,7 @@ window.auth = firebase.auth();
 window.db   = firebase.firestore();
 window.ARBEITER_UID = ARBEITER_UID;
 window.KUNDEN_COLLECTION = KUNDEN_COLLECTION;
+window.ARCHIV_COLLECTION = ARCHIV_COLLECTION;
 
 // Rollen-Status (wird von auth.js gesetzt, von app.js gelesen).
 window.isArbeiter = false;

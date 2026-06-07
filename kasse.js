@@ -17,6 +17,8 @@ const kasseEl = {
 
 let kasseUnsub = null;
 
+const KASSE_WOCHE_MS = 7 * 24 * 60 * 60 * 1000;  // Aufbewahrung: 1 Woche
+
 const kasseToday = () => new Date().toISOString().slice(0, 10);
 const kasseEur = (n) =>
   Number(n).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
@@ -73,8 +75,41 @@ function renderKasseCards(kunden) {
           (done ? "Fertig" : "Offen") + '</span>' +
       '</div>' +
       items +
+      '<div class="card-foot">' +
+        '<button class="btn btn-primary" data-act="archive" data-id="' +
+          kasseEscape(c.id) + '">Auftrag abschließen</button>' +
+      '</div>' +
     '</div>';
   }).join("");
+}
+
+// Auftrag abschließen: ins Archiv kopieren (mit Zeitstempel) und aus der
+// aktiven Liste entfernen. Verschwindet dadurch automatisch aus der Ansicht.
+function archiveOrder(id) {
+  const ref = window.db.collection(window.KUNDEN_COLLECTION).doc(id);
+  return ref.get().then((snap) => {
+    if (!snap.exists) return;
+    const data = snap.data();
+    const expireMs = Date.now() + KASSE_WOCHE_MS;
+    return window.db.collection(window.ARCHIV_COLLECTION).doc(id).set(
+      Object.assign({}, data, {
+        archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        archivedBy: window.currentUid || null,
+        expireAt:   firebase.firestore.Timestamp.fromMillis(expireMs),
+      })
+    ).then(() => ref.delete());
+  });
+}
+
+// Aufbewahrung: Archiv-Einträge, die älter als 1 Woche sind, löschen.
+// Best-effort beim Öffnen der Kasse (zusätzlich zur optionalen TTL-Regel).
+function purgeOldArchive() {
+  const cutoff = firebase.firestore.Timestamp.fromMillis(Date.now() - KASSE_WOCHE_MS);
+  window.db.collection(window.ARCHIV_COLLECTION)
+    .where("archivedAt", "<", cutoff)
+    .get()
+    .then((snap) => snap.forEach((d) => d.ref.delete().catch(() => {})))
+    .catch(() => {});
 }
 
 window.startKasse = function (user) {
@@ -84,6 +119,9 @@ window.startKasse = function (user) {
   });
   kasseEl.cards.innerHTML = '<div class="empty-state"><p>Lädt …</p></div>';
 
+  // Alte Archiv-Einträge (> 1 Woche) aufräumen.
+  purgeOldArchive();
+
   if (kasseUnsub) { kasseUnsub(); kasseUnsub = null; }
 
   // Nur die Aufträge von heute, neueste Nummer zuerst.
@@ -91,7 +129,7 @@ window.startKasse = function (user) {
     .where("datum", "==", kasseToday())
     .onSnapshot((snap) => {
       const list = [];
-      snap.forEach((doc) => list.push(doc.data()));
+      snap.forEach((doc) => list.push(Object.assign({ id: doc.id }, doc.data())));
       list.sort((a, b) => (b.nummer || 0) - (a.nummer || 0));
       renderKasseCards(list);
     }, (err) => {
@@ -104,3 +142,18 @@ window.startKasse = function (user) {
 window.stopKasse = function () {
   if (kasseUnsub) { kasseUnsub(); kasseUnsub = null; }
 };
+
+// Klick auf "Auftrag abschließen" (Delegation).
+kasseEl.cards.addEventListener("click", (e) => {
+  const btn = e.target.closest('[data-act="archive"]');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  if (!confirm("Auftrag abschließen? Er wird aus der Liste entfernt und ins Archiv verschoben.")) return;
+  btn.disabled = true;
+  btn.textContent = "Wird abgeschlossen …";
+  archiveOrder(id).catch((err) => {
+    alert("Fehler beim Abschließen: " + err.message);
+    btn.disabled = false;
+    btn.textContent = "Auftrag abschließen";
+  });
+});

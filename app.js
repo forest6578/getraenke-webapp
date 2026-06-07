@@ -230,6 +230,11 @@ function renderStart() {
         <p class="start-tagline">Leergut annehmen &amp; Vollgut ausgeben – schnell pro Kunde erfasst.</p>
       </div>
 
+      <div class="start-actions">
+        <button class="btn btn-primary btn-block btn-lg" data-act="neu">Neuer Auftrag</button>
+        ${total ? `<button class="btn btn-ghost btn-block" data-act="open-list">Liste ansehen (${total}${offene ? `, ${offene} offen` : ""})</button>` : ""}
+      </div>
+
       <div class="howto">
         <div class="howto-step">
           <span class="step-num">1</span>
@@ -245,11 +250,7 @@ function renderStart() {
         </div>
       </div>
 
-      <div class="start-actions">
-        <button class="btn btn-primary btn-block" data-act="neu">Neuer Auftrag</button>
-        ${total ? `<button class="btn btn-ghost btn-block" data-act="open-list">Liste ansehen (${total}${offene ? `, ${offene} offen` : ""})</button>` : ""}
-        <button class="btn btn-ghost btn-block account-logout" data-act="logout">Abmelden</button>
-      </div>
+      <button class="btn btn-ghost btn-block account-logout" data-act="logout">Abmelden</button>
     </div>`;
 }
 

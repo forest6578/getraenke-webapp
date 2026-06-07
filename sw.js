@@ -4,7 +4,7 @@
 //  Bei jeder Änderung an HTML/CSS/JS die CACHE-Version erhöhen,
 //  damit die neue Fassung sicher ausgeliefert wird.
 // =============================================================
-const CACHE = "getraenke-v2";
+const CACHE = "getraenke-v3";
 
 // Relativ zum Scope (Ordner, in dem der SW liegt) – funktioniert
 // auch in Unterverzeichnissen / auf GitHub Pages.
@@ -33,13 +33,17 @@ self.addEventListener("install", (event) => {
 });
 
 // Aktivieren: alte Cache-Versionen aufräumen.
+// Bewusst KEIN clients.claim(): sonst übernimmt ein frisch installierter
+// Service-Worker die gerade ladende Seite und fängt noch laufende CSS-/
+// Font-Anfragen ab -> beim allerersten Öffnen halb gestyltes Bild.
+// Ohne claim läuft die erste Anzeige komplett übers Netz; der SW greift
+// ab dem nächsten Seitenaufruf.
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
     )
   );
-  self.clients.claim();
 });
 
 // Abrufen: für Navigationsanfragen "network-first" (damit Updates
