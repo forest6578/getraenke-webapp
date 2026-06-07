@@ -22,7 +22,31 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app">
+
+  <!-- ====== Anmelde-Bildschirm (Landing Page) ====== -->
+  <div id="auth-screen">
+    <form id="auth-form" class="auth-card" autocomplete="on">
+      <div class="auth-logo">
+        <svg viewBox="0 0 24 24"><path d="M6 2h12l-1 6a5 5 0 01-10 0L6 2zM9 22h6M12 13v9"/></svg>
+      </div>
+      <h1 class="auth-title">Getränke-Erfassung</h1>
+      <p class="auth-sub">Bitte anmelden – als Arbeiter oder Kasse.</p>
+
+      <label class="auth-field">
+        <span>E-Mail</span>
+        <input type="email" id="auth-email" placeholder="name@beispiel.de" autocomplete="username" inputmode="email">
+      </label>
+      <label class="auth-field">
+        <span>Passwort</span>
+        <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
+      </label>
+
+      <button type="submit" class="btn btn-primary btn-block" id="auth-submit">Anmelden</button>
+      <p class="auth-error" id="auth-error"></p>
+    </form>
+  </div>
+
+  <div id="app" hidden>
 
     <!-- ====== Kopfzeile (immer sichtbar) ====== -->
     <header id="topbar">
@@ -50,6 +74,22 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
       Liste fertigstellen
     </button>
+  </div>
+
+  <!-- ====== Kasse-Ansicht (schreibgeschützt, live) ====== -->
+  <div id="kasse" hidden>
+    <header id="kasse-topbar">
+      <div class="kasse-head-left">
+        <span class="kasse-role">Kasse</span>
+        <span class="kasse-email" id="kasse-email"></span>
+      </div>
+      <button class="btn btn-ghost kasse-logout" onclick="logout()">Abmelden</button>
+    </header>
+    <div class="kasse-subbar">
+      <span class="kasse-date" id="kasse-date"></span>
+      <span class="kasse-counter">Aufträge: <b id="kasse-count" hidden>0</b></span>
+    </div>
+    <div class="kasse-body" id="kasseCards"></div>
   </div>
 
   <!-- ====== Mengen-Modal (Kästen + Flaschen) ====== -->
@@ -99,8 +139,16 @@
     </div>
   </div>
 
+  <!-- Firebase SDK (Auth + Firestore) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
   <script src="products.js"></script>
   <script src="app.js"></script>
+  <script src="kasse.js"></script>
+  <script src="auth.js"></script>
 
   <!-- Service Worker registrieren (nur über http/https, nicht bei file://) -->
   <script>

@@ -71,6 +71,36 @@ function load() {
   }
 }
 
+// ---- Firestore-Synchronisation --------------------------------
+// Der Arbeiter schreibt jede Änderung zusätzlich in die Datenbank,
+// damit die Kasse sie live sieht. Schlägt das fehl (offline/keine
+// Rolle), läuft die App lokal trotzdem normal weiter.
+function syncCustomer(c) {
+  if (!window.db || !window.isArbeiter || !c) return;
+  window.db.collection(window.KUNDEN_COLLECTION).doc(c.id).set({
+    nummer: c.nummer,
+    datum:  c.datum,
+    status: c.status,
+    items:  c.items,
+    createdBy: window.currentUid || null,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true }).catch((err) => console.warn("Sync-Fehler:", err));
+}
+
+function deleteCustomerRemote(id) {
+  if (!window.db || !window.isArbeiter || !id) return;
+  window.db.collection(window.KUNDEN_COLLECTION).doc(id).delete()
+    .catch((err) => console.warn("Löschen (Datenbank) fehlgeschlagen:", err));
+}
+
+// Beim Anmelden als Arbeiter: alle heutigen Aufträge hochladen
+// (z.B. wenn vorher offline erfasst wurde).
+window.syncAllToday = function () {
+  if (!window.db || !window.isArbeiter) return;
+  const today = todayStr();
+  state.customers.filter((c) => c.datum === today).forEach(syncCustomer);
+};
+
 // ---- Navigation -----------------------------------------------
 function go(view, ctx = {}) {
   navStack.push({ view, ...ctx });
@@ -101,6 +131,7 @@ function neuerAuftrag() {
   state.customers.push(kunde);
   state.currentId = kunde.id;
   save();
+  syncCustomer(kunde);
 
   showBigNumber(kunde.nummer, () => {
     navStack = [{ view: "kategorie" }];
@@ -114,6 +145,7 @@ function finishCurrent() {
   state.currentId = null;
   navStack = [{ view: "start" }];
   save();
+  if (c) syncCustomer(c);
   render();
 }
 
@@ -122,6 +154,7 @@ function addItem(item) {
   if (!c) return;
   c.items.push(item);
   save();
+  syncCustomer(c);
 }
 
 // ---- Große Nummer-Einblendung ---------------------------------
@@ -215,6 +248,7 @@ function renderStart() {
       <div class="start-actions">
         <button class="btn btn-primary btn-block" data-act="neu">Neuer Auftrag</button>
         ${total ? `<button class="btn btn-ghost btn-block" data-act="open-list">Liste ansehen (${total}${offene ? `, ${offene} offen` : ""})</button>` : ""}
+        <button class="btn btn-ghost btn-block account-logout" data-act="logout">Abmelden</button>
       </div>
     </div>`;
 }
@@ -342,6 +376,7 @@ function confirmQty() {
     const it = c?.items.find((i) => i.id === pending.id);
     if (it) { it.kaesten = kaesten; it.flaschen = flaschen; }
     save();
+    if (c) syncCustomer(c);
     closeQtyModal();
     // Wenn aus der Liste bearbeitet: Liste offen lassen
     if (!el.listOverlay.hidden) { renderCards(); render(); }
@@ -445,6 +480,7 @@ el.view.addEventListener("click", (e) => {
   switch (act) {
     case "neu":        neuerAuftrag(); break;
     case "open-list":  openList(); break;
+    case "logout":     if (window.logout) window.logout(); break;
     case "kat":        btn.dataset.kat === "voll" ? go("voll-marke") : go("leer-preis"); break;
     case "marke":      go("voll-behaelter", { marke: btn.dataset.marke }); break;
     case "behaelter":  go("voll-variante", { marke: btn.dataset.marke, behaelter: btn.dataset.behaelter }); break;
@@ -511,7 +547,7 @@ el.cards.addEventListener("click", (e) => {
   switch (btn.dataset.act) {
     case "del-item":
       c.items = c.items.filter((i) => i.id !== btn.dataset.iid);
-      save(); renderCards(); render();
+      save(); syncCustomer(c); renderCards(); render();
       break;
     case "edit-item": {
       const it = c.items.find((i) => i.id === btn.dataset.iid);
@@ -522,31 +558,34 @@ el.cards.addEventListener("click", (e) => {
       if (confirm(`Kunde ${c.nummer} wirklich löschen?`)) {
         state.customers = state.customers.filter((x) => x.id !== cid);
         if (state.currentId === cid) { state.currentId = null; navStack = [{ view: "start" }]; }
-        save(); renderCards(); render();
+        save(); deleteCustomerRemote(cid); renderCards(); render();
         if (state.customers.length === 0) closeList();
       }
       break;
     case "finish-card":
       c.status = "fertig";
       if (state.currentId === cid) { state.currentId = null; navStack = [{ view: "start" }]; }
-      save(); renderCards(); render();
+      save(); syncCustomer(c); renderCards(); render();
       break;
     case "reopen-card":
       // Anderen offenen Kunden ggf. behalten; diesen wieder aktiv setzen
       c.status = "offen";
       state.currentId = cid;
       navStack = [{ view: "kategorie" }];
-      save(); renderCards(); render();
+      save(); syncCustomer(c); renderCards(); render();
       break;
   }
 });
 
 // =============================================================
 //  INIT
+//  Wird von auth.js aufgerufen, sobald sich ein Arbeiter anmeldet.
 // =============================================================
-load();
-// Nach Reload: offenen aktuellen Kunden fortsetzen, sonst Start
-const resume = currentCustomer();
-navStack = resume && resume.status === "offen" ? [{ view: "kategorie" }] : [{ view: "start" }];
-if (!resume) state.currentId = null;
-render();
+window.startArbeiterApp = function () {
+  load();
+  // Nach Reload: offenen aktuellen Kunden fortsetzen, sonst Start
+  const resume = currentCustomer();
+  navStack = resume && resume.status === "offen" ? [{ view: "kategorie" }] : [{ view: "start" }];
+  if (!resume) state.currentId = null;
+  render();
+};

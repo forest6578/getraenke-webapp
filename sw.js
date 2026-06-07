@@ -4,7 +4,7 @@
 //  Bei jeder Änderung an HTML/CSS/JS die CACHE-Version erhöhen,
 //  damit die neue Fassung sicher ausgeliefert wird.
 // =============================================================
-const CACHE = "getraenke-v1";
+const CACHE = "getraenke-v2";
 
 // Relativ zum Scope (Ordner, in dem der SW liegt) – funktioniert
 // auch in Unterverzeichnissen / auf GitHub Pages.
@@ -12,8 +12,11 @@ const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
+  "./firebase-config.js",
   "./products.js",
   "./app.js",
+  "./kasse.js",
+  "./auth.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

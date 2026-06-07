@@ -1,0 +1,24 @@
+// =============================================================
+//  Firestore-Sicherheitsregeln
+//  -------------------------------------------------------------
+//  In der Firebase Console eintragen:
+//    Firestore Database -> Regeln (Rules) -> Inhalt ersetzen ->
+//    "Veröffentlichen" (Publish).
+//
+//  Bedeutung:
+//   - Sammlung "kunden": jeder ANGEMELDETE Nutzer darf LESEN (Kasse),
+//     aber nur der Arbeiter (feste UID) darf SCHREIBEN/LÖSCHEN.
+//   - Die UID muss mit ARBEITER_UID in firebase-config.js übereinstimmen.
+// =============================================================
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /kunden/{doc} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == "e0fQWeqgdVM28gy0vGeNsJmQZ3x2";
+    }
+
+  }
+}
