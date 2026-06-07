@@ -12,7 +12,9 @@ Reines HTML/CSS/JS, kein Build-Schritt. Dark Mode, am Anthropic/Claude-Look orie
 Beim Start erscheint ein Login (Firebase Authentication). Es gibt zwei Rollen:
 
 - **Arbeiter** (vorher „Schreiber") – erfasst Kundenaufträge; jede Änderung wird live
-  in die Datenbank (Firestore) geschrieben.
+  in die Datenbank (Firestore) geschrieben **und** von dort gelesen, sodass mehrere
+  Arbeiter-Geräte (z. B. PC und Handy) denselben Stand sehen. Jeder Auftrag kann
+  über die Liste jederzeit archiviert werden (auch wenn er noch nicht fertig ist).
 - **Kasse** (vorher „Leser") – sieht eine Live-Liste der heutigen Aufträge, die
   sich automatisch aktualisiert (auf Desktop mehrspaltig). Jeder Auftrag kann mit
   **„Auftrag abschließen"** ins Archiv verschoben werden und verschwindet aus der

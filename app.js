@@ -93,13 +93,97 @@ function deleteCustomerRemote(id) {
     .catch((err) => console.warn("Löschen (Datenbank) fehlgeschlagen:", err));
 }
 
-// Beim Anmelden als Arbeiter: alle heutigen Aufträge hochladen
-// (z.B. wenn vorher offline erfasst wurde).
-window.syncAllToday = function () {
-  if (!window.db || !window.isArbeiter) return;
+// ---- Live-Abgleich über mehrere Arbeiter-Geräte --------------
+// Die Datenbank (kunden, heutiger Tag) ist die gemeinsame Quelle.
+// Snapshots werden in den lokalen State eingemischt, damit z.B. PC
+// und Handy denselben Stand sehen. Der gerade offene Kunde bleibt
+// lokal (schützt aktive Bearbeitung vor Überschreiben).
+let arbeiterUnsub = null;
+
+function applyRemoteCustomers(remote) {
   const today = todayStr();
-  state.customers.filter((c) => c.datum === today).forEach(syncCustomer);
+  const localById = new Map(state.customers.map((c) => [c.id, c]));
+  const otherDays = state.customers.filter((c) => c.datum !== today);
+  const curId = state.currentId;
+
+  const list = remote.map((rc) =>
+    (rc.id === curId && localById.has(curId)) ? localById.get(curId) : rc
+  );
+  // Offenen, noch nicht hochgeladenen Kunden bewahren.
+  if (curId && localById.has(curId) && localById.get(curId).datum === today &&
+      !remote.some((r) => r.id === curId)) {
+    list.push(localById.get(curId));
+  }
+  state.customers = otherDays.concat(list);
+
+  // Tageszähler an die höchste bekannte Nummer angleichen, damit neue
+  // Aufträge auf einem zweiten Gerät nicht dieselbe Nummer vergeben.
+  const maxNr = state.customers
+    .filter((c) => c.datum === today)
+    .reduce((m, c) => Math.max(m, c.nummer || 0), 0);
+  if (state.counter.datum !== today) state.counter = { datum: today, last: maxNr };
+  else state.counter.last = Math.max(state.counter.last, maxNr);
+
+  save();
+  if (!el.listOverlay.hidden) renderCards();
+  // Start-View neu rendern (Anzahl aktualisieren); andere Views nicht,
+  // damit Auswahl/Eingaben nicht unterbrochen werden.
+  if (currentView().view === "start") render();
+  else refreshHeaderCounts();
+}
+
+function refreshHeaderCounts() {
+  const total = state.customers.length;
+  el.listCount.hidden = total === 0;
+  el.listCount.textContent = total;
+}
+
+window.subscribeArbeiter = function () {
+  if (!window.db) return;
+  if (arbeiterUnsub) { arbeiterUnsub(); arbeiterUnsub = null; }
+  arbeiterUnsub = window.db.collection(window.KUNDEN_COLLECTION)
+    .where("datum", "==", todayStr())
+    .onSnapshot((snap) => {
+      const remote = [];
+      snap.forEach((doc) => remote.push(Object.assign({ id: doc.id }, doc.data())));
+      applyRemoteCustomers(remote);
+    }, (err) => console.warn("Arbeiter-Sync-Fehler:", err));
 };
+
+window.stopArbeiterSync = function () {
+  if (arbeiterUnsub) { arbeiterUnsub(); arbeiterUnsub = null; }
+};
+
+// ---- Auftrag archivieren (jederzeit, auch unfertig) -----------
+// Kopiert den Auftrag ins Archiv (mit Zeitstempel) und entfernt ihn
+// aus der aktiven Liste – lokal und in der Datenbank.
+function archiveCustomer(id) {
+  const c = state.customers.find((x) => x.id === id);
+  if (!c) return;
+
+  if (window.db) {
+    const expireMs = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    window.db.collection(window.ARCHIV_COLLECTION).doc(c.id).set({
+      nummer: c.nummer,
+      datum:  c.datum,
+      status: c.status,
+      items:  c.items,
+      createdBy:  c.createdBy || window.currentUid || null,
+      archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      archivedBy: window.currentUid || null,
+      expireAt:   firebase.firestore.Timestamp.fromMillis(expireMs),
+    })
+      .then(() => window.db.collection(window.KUNDEN_COLLECTION).doc(c.id).delete())
+      .catch((err) => console.warn("Archivieren fehlgeschlagen:", err));
+  }
+
+  state.customers = state.customers.filter((x) => x.id !== id);
+  if (state.currentId === id) { state.currentId = null; navStack = [{ view: "start" }]; }
+  save();
+  renderCards();
+  render();
+  if (state.customers.length === 0) closeList();
+}
 
 // ---- Navigation -----------------------------------------------
 function go(view, ctx = {}) {
@@ -440,14 +524,17 @@ function renderCards() {
           </li>`).join("")}</ul>`
       : `<div class="card-empty">Noch keine Einträge</div>`;
 
+    const archiveBtn = `<button class="btn btn-ghost btn-archive" data-act="archive-card" data-cid="${c.id}">Archivieren</button>`;
     const foot = isCurrent
       ? `<div class="card-foot">
            <button class="btn btn-danger" data-act="del-card" data-cid="${c.id}">Kunde löschen</button>
            <button class="btn btn-primary" data-act="finish-card" data-cid="${c.id}">Fertigstellen</button>
+           ${archiveBtn}
          </div>`
       : `<div class="card-foot">
            <button class="btn btn-danger" data-act="del-card" data-cid="${c.id}">Löschen</button>
            <button class="btn btn-ghost" data-act="reopen-card" data-cid="${c.id}">Wieder öffnen</button>
+           ${archiveBtn}
          </div>`;
 
     return `<div class="card ${isCurrent ? "current" : ""}">
@@ -575,6 +662,11 @@ el.cards.addEventListener("click", (e) => {
       navStack = [{ view: "kategorie" }];
       save(); syncCustomer(c); renderCards(); render();
       break;
+    case "archive-card":
+      if (confirm(`Auftrag von Kunde ${c.nummer} archivieren? Er verschwindet aus der Liste und wird ins Archiv verschoben.`)) {
+        archiveCustomer(cid);
+      }
+      break;
   }
 });
 
@@ -589,4 +681,6 @@ window.startArbeiterApp = function () {
   navStack = resume && resume.status === "offen" ? [{ view: "kategorie" }] : [{ view: "start" }];
   if (!resume) state.currentId = null;
   render();
+  // Live-Abgleich mit der Datenbank starten (mehrere Arbeiter-Geräte).
+  if (window.subscribeArbeiter) window.subscribeArbeiter();
 };

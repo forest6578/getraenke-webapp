@@ -29,6 +29,7 @@ function showAuth() {
   authEl.error.textContent = "";
   authEl.password.value = "";
   if (window.stopKasse) window.stopKasse();
+  if (window.stopArbeiterSync) window.stopArbeiterSync();
 }
 
 function showArbeiter(user) {
@@ -38,13 +39,14 @@ function showArbeiter(user) {
   authEl.kasse.hidden  = true;
   authEl.app.hidden    = false;
 
-  // Erfassungs-App starten (einmalig); danach lokal vorhandene
-  // Aufträge des heutigen Tages in die Datenbank hochladen.
+  // Erfassungs-App einmalig starten (startet auch den Live-Abgleich).
   if (!arbeiterStarted && window.startArbeiterApp) {
     window.startArbeiterApp();
     arbeiterStarted = true;
+  } else if (window.subscribeArbeiter) {
+    // Nach erneuter Anmeldung: Live-Abgleich wieder aktivieren.
+    window.subscribeArbeiter();
   }
-  if (window.syncAllToday) window.syncAllToday();
 }
 
 function showKasse(user) {
@@ -53,6 +55,7 @@ function showKasse(user) {
   authEl.screen.hidden = true;
   authEl.app.hidden    = true;
   authEl.kasse.hidden  = false;
+  if (window.stopArbeiterSync) window.stopArbeiterSync();
   if (window.startKasse) window.startKasse(user);
 }
 
