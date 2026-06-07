@@ -435,9 +435,13 @@ function openQtyModal(item, opts = {}) {
   el.qtyFlaschen.value = item.flaschen ?? 0;
   el.qtyHint.hidden = !allowNeg;
   el.qtyModal.hidden = false;
-  // Bei einzelnen Flaschen / Edit ggf. Flaschenfeld fokussieren
-  const focusEl = opts.focusFlaschen ? el.qtyFlaschen : el.qtyKaesten;
-  setTimeout(() => focusEl.select(), 50);
+  // Tastatur NICHT automatisch öffnen – Mengen werden per +/- erfasst.
+  // Ein evtl. noch fokussiertes Feld (z.B. manuelle Eingabe) abwählen,
+  // damit die Tastatur sicher geschlossen ist. Tippen bleibt möglich,
+  // indem man das Zahlenfeld antippt.
+  if (document.activeElement && document.activeElement.blur) {
+    document.activeElement.blur();
+  }
 }
 
 function closeQtyModal() {

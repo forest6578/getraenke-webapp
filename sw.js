@@ -4,7 +4,7 @@
 //  Bei jeder Änderung an HTML/CSS/JS die CACHE-Version erhöhen,
 //  damit die neue Fassung sicher ausgeliefert wird.
 // =============================================================
-const CACHE = "getraenke-v4";
+const CACHE = "getraenke-v5";
 
 // Relativ zum Scope (Ordner, in dem der SW liegt) – funktioniert
 // auch in Unterverzeichnissen / auf GitHub Pages.
